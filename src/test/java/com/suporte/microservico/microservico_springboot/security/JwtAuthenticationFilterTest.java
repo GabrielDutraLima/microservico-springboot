@@ -21,68 +21,81 @@ import static org.mockito.Mockito.*;
 class JwtAuthenticationFilterTest {
 
     @Mock
-    private JwtTokenUtil jwtTokenUtil;
+    private JwtTokenUtil jwtTokenUtil; // Mock do JwtTokenUtil
 
     @Mock
-    private FilterChain filterChain;
+    private FilterChain filterChain; // Mock da FilterChain, usada para continuar o fluxo de requisições
 
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    private JwtAuthenticationFilter jwtAuthenticationFilter; // A classe que estamos testando
 
+    // Configuração dos mocks antes de cada teste
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
-        jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtTokenUtil);
+        MockitoAnnotations.openMocks(this); // Inicializa os mocks
+        jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtTokenUtil); // Cria o objeto a ser testado
     }
 
+    // Limpeza do contexto de segurança após cada teste
     @AfterEach
     void tearDown() {
-        SecurityContextHolder.clearContext(); // Limpar o contexto de segurança após cada teste
+        SecurityContextHolder.clearContext(); // Limpa o contexto de segurança
     }
 
     @Test
     void deveConfigurarAutenticacaoQuandoTokenValidoForFornecido() throws ServletException, IOException {
+        // Prepara o cenário: cria uma requisição com token válido
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
         request.addHeader("Authorization", "Bearer tokenValido");
 
+        // Quando o token é validado, o nome de usuário "usuarioTeste" é extraído
         when(jwtTokenUtil.validateToken("tokenValido")).thenReturn(true);
         when(jwtTokenUtil.extractUsername("tokenValido")).thenReturn("usuarioTeste");
 
+        // Ação: chama o filtro de autenticação
         jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
 
+        // Verificação: o contexto de segurança deve ter a autenticação configurada com o nome de usuário
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
         assertEquals("usuarioTeste", SecurityContextHolder.getContext().getAuthentication().getPrincipal());
-        verify(jwtTokenUtil, times(1)).validateToken("tokenValido");
-        verify(jwtTokenUtil, times(1)).extractUsername("tokenValido");
-        verify(filterChain, times(1)).doFilter(request, response);
+        verify(jwtTokenUtil, times(1)).validateToken("tokenValido"); // Verifica se o método validateToken foi chamado
+        verify(jwtTokenUtil, times(1)).extractUsername("tokenValido"); // Verifica se o método extractUsername foi chamado
+        verify(filterChain, times(1)).doFilter(request, response); // Verifica se o filtro foi continuado
     }
 
     @Test
     void naoDeveConfigurarAutenticacaoQuandoTokenInvalidoForFornecido() throws ServletException, IOException {
+        // Prepara o cenário: cria uma requisição com token inválido
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
         request.addHeader("Authorization", "Bearer tokenInvalido");
 
+        // Quando o token é invalidado
         when(jwtTokenUtil.validateToken("tokenInvalido")).thenReturn(false);
 
+        // Ação: chama o filtro de autenticação
         jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
 
+        // Verificação: o contexto de segurança não deve ter a autenticação configurada
         assertNull(SecurityContextHolder.getContext().getAuthentication());
-        verify(jwtTokenUtil, times(1)).validateToken("tokenInvalido");
-        verify(jwtTokenUtil, never()).extractUsername(anyString());
-        verify(filterChain, times(1)).doFilter(request, response);
+        verify(jwtTokenUtil, times(1)).validateToken("tokenInvalido"); // Verifica se o método validateToken foi chamado
+        verify(jwtTokenUtil, never()).extractUsername(anyString()); // Não deve tentar extrair o nome de usuário
+        verify(filterChain, times(1)).doFilter(request, response); // Verifica se o filtro foi continuado
     }
 
     @Test
     void deveContinuarCadeiaDeFiltrosQuandoNaoHaToken() throws ServletException, IOException {
+        // Prepara o cenário: cria uma requisição sem token no cabeçalho
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
 
+        // Ação: chama o filtro de autenticação
         jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
 
+        // Verificação: o contexto de segurança não deve ter a autenticação configurada
         assertNull(SecurityContextHolder.getContext().getAuthentication());
-        verify(jwtTokenUtil, never()).validateToken(anyString());
-        verify(jwtTokenUtil, never()).extractUsername(anyString());
-        verify(filterChain, times(1)).doFilter(request, response);
+        verify(jwtTokenUtil, never()).validateToken(anyString()); // Não deve validar nenhum token
+        verify(jwtTokenUtil, never()).extractUsername(anyString()); // Não deve tentar extrair o nome de usuário
+        verify(filterChain, times(1)).doFilter(request, response); // Verifica se o filtro foi continuado
     }
 }
