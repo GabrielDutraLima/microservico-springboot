@@ -31,6 +31,9 @@ public class Usuario {
         this.senha = senha;
     }
 
+    public Usuario(Object o, String mail, String senha) {
+    }
+
     // Getters e Setters para acessar e modificar os atributos
 
     public Long getId() {
