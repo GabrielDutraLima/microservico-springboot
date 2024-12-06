@@ -8,10 +8,9 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration // Anotação que indica que a classe é uma configuração do Spring
+@Configuration // Anotação para indicar que a classe é uma configuração do Spring
 public class SwaggerConfig {
 
-    // Cria um bean que configura o Swagger para a documentação da API
     @Bean
     public OpenAPI customOpenAPI() {
         final String securitySchemeName = "bearerAuth"; // Define o nome do esquema de segurança (bearerAuth)

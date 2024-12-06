@@ -12,27 +12,25 @@ import java.util.List;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+    // Manipulador de exceções genéricas
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleException(Exception ex) {
-        // Tratamento genérico para qualquer exceção
         return new ResponseEntity<>("Erro interno no servidor: " + ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
+    // Manipulador para exceções de argumentos inválidos
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException ex) {
-        // Trata exceções de argumentos inválidos, como no caso de e-mail já registrado
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
+    // Manipulador para erros de validação (ex. quando as propriedades de um DTO não são válidas)
     @ExceptionHandler(BindException.class)
     public ResponseEntity<List<String>> handleValidationException(BindException ex) {
-        // Retorna erros de validação de forma detalhada
         List<String> errors = ex.getBindingResult().getAllErrors()
                 .stream()
                 .map(objectError -> ((FieldError) objectError).getDefaultMessage())
                 .toList();
         return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
     }
-
-    // Adicione mais manipuladores de exceção conforme necessário, como para NotFoundException, etc.
 }
