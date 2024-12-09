@@ -19,16 +19,17 @@ import static org.mockito.Mockito.*;
 class UsuarioControllerTest {
 
     @InjectMocks
-    private UsuarioController usuarioController; // Injeção da classe que será testada
+    private UsuarioController usuarioController;
 
     @Mock
-    private UsuarioService usuarioService; // Mock da dependência UsuarioService
+    private UsuarioService usuarioService;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this); // Inicializa os mocks
+        MockitoAnnotations.openMocks(this);
     }
 
+    // Teste para listar todos os usuários
     @Test
     void deveListarTodosOsUsuarios() {
         List<Usuario> usuarios = Arrays.asList(
@@ -43,6 +44,7 @@ class UsuarioControllerTest {
         verify(usuarioService, times(1)).listarTodos();
     }
 
+    // Teste para verificar exceções ao listar usuários
     @Test
     void deveRetornarErro500QuandoExcecaoOcorreAoListarUsuarios() {
         when(usuarioService.listarTodos()).thenThrow(new RuntimeException("Erro interno"));
@@ -53,30 +55,28 @@ class UsuarioControllerTest {
         verify(usuarioService, times(1)).listarTodos();
     }
 
+    // Teste para verificar se campos obrigatórios estão nulos ao criar um usuário
     @Test
     void deveRetornarBadRequestQuandoNomeEmailOuSenhaEstiveremNulos() {
-        // Testando o fluxo onde o nome é nulo
         Usuario usuarioInvalido = new Usuario(null, "email@dominio.com", "senha");
         ResponseEntity<Usuario> resposta = usuarioController.criar(usuarioInvalido);
         assertEquals(400, resposta.getStatusCodeValue());
         verify(usuarioService, never()).salvar(any(Usuario.class));
 
-        // Testando o fluxo onde o email é nulo
         usuarioInvalido = new Usuario("Nome", null, "senha");
         resposta = usuarioController.criar(usuarioInvalido);
         assertEquals(400, resposta.getStatusCodeValue());
         verify(usuarioService, never()).salvar(any(Usuario.class));
 
-        // Testando o fluxo onde a senha é nula
         usuarioInvalido = new Usuario("Nome", "email@dominio.com", null);
         resposta = usuarioController.criar(usuarioInvalido);
         assertEquals(400, resposta.getStatusCodeValue());
         verify(usuarioService, never()).salvar(any(Usuario.class));
     }
 
+    // Teste para verificar quando o email já existe
     @Test
     void deveRetornarConflictQuandoEmailJaEstiverRegistrado() {
-        // Simulando a situação onde o email já está registrado
         Usuario usuarioComEmailExistente = new Usuario(null, "Nome", "email@dominio.com", "senha");
         when(usuarioService.salvar(usuarioComEmailExistente)).thenThrow(new IllegalArgumentException("E-mail já registrado."));
 
@@ -85,6 +85,7 @@ class UsuarioControllerTest {
         verify(usuarioService, times(1)).salvar(usuarioComEmailExistente);
     }
 
+    // Teste para criar um usuário com sucesso
     @Test
     void deveCriarUsuarioComSucesso() {
         Usuario novoUsuario = new Usuario(null, "NovoUsuario", "novo@email.com", "senha");
@@ -100,6 +101,7 @@ class UsuarioControllerTest {
         verify(usuarioService, times(1)).salvar(novoUsuario);
     }
 
+    // Teste para buscar um usuário por ID que existe
     @Test
     void deveRetornarOkQuandoUsuarioExistir() {
         Usuario usuario = new Usuario(1L, "Nome", "email@dominio.com", "senha");
@@ -112,6 +114,7 @@ class UsuarioControllerTest {
         verify(usuarioService, times(1)).buscarPorId(1L);
     }
 
+    // Teste para buscar um usuário por ID que não existe
     @Test
     void deveRetornarNotFoundQuandoUsuarioNaoExistir() {
         when(usuarioService.buscarPorId(1L)).thenReturn(Optional.empty());
@@ -122,6 +125,7 @@ class UsuarioControllerTest {
         verify(usuarioService, times(1)).buscarPorId(1L);
     }
 
+    // Teste para atualizar um usuário com sucesso
     @Test
     void deveAtualizarUsuarioComSucesso() {
         Usuario usuarioExistente = new Usuario(1L, "Existente", "existente@email.com", "senha");
@@ -137,6 +141,21 @@ class UsuarioControllerTest {
         verify(usuarioService, times(1)).atualizar(eq(1L), any());
     }
 
+    // Teste para falha ao tentar atualizar um usuário que não existe
+    @Test
+    void naoDeveAtualizarUsuarioQuandoNaoExistir() {
+        Usuario usuarioAtualizado = new Usuario(1L, "Atualizado", "novo@email.com", "novaSenha");
+
+        when(usuarioService.buscarPorId(1L)).thenReturn(Optional.empty());
+
+        ResponseEntity<Usuario> resposta = usuarioController.atualizar(1L, usuarioAtualizado);
+
+        assertEquals(404, resposta.getStatusCodeValue());
+        verify(usuarioService, times(1)).buscarPorId(1L);
+        verify(usuarioService, never()).atualizar(anyLong(), any());
+    }
+
+    // Teste para deletar um usuário com sucesso
     @Test
     void deveDeletarUsuarioComSucesso() {
         Usuario usuario = new Usuario(1L, "Usuario", "usuario@email.com", "senha");
@@ -150,6 +169,7 @@ class UsuarioControllerTest {
         verify(usuarioService, times(1)).deletar(1L);
     }
 
+    // Teste para não deletar um usuário se não existir
     @Test
     void naoDeveDeletarUsuarioSeNaoExistir() {
         when(usuarioService.buscarPorId(1L)).thenReturn(Optional.empty());
@@ -159,5 +179,13 @@ class UsuarioControllerTest {
         assertEquals(404, resposta.getStatusCodeValue());
         verify(usuarioService, times(1)).buscarPorId(1L);
         verify(usuarioService, never()).deletar(any());
+    }
+
+    // Teste para verificar se o serviço retorna erro ao tentar criar um usuário com e-mail nulo
+    @Test
+    void deveRetornarBadRequestQuandoEmailForNulo() {
+        Usuario usuarioComEmailNulo = new Usuario(null, null, "senha");
+        ResponseEntity<Usuario> resposta = usuarioController.criar(usuarioComEmailNulo);
+        assertEquals(400, resposta.getStatusCodeValue());
     }
 }

@@ -114,4 +114,24 @@ class UsuarioServiceTest {
         verify(usuarioRepository, times(1)).findById(1L);
         verify(usuarioRepository, never()).delete(any(Usuario.class));
     }
+
+    @Test
+    void deveRetornarFalseQuandoEmailJaExistirNoMetodoExistsByEmail() {
+        Usuario usuarioExistente = new Usuario(1L, "UsuarioExistente", "existente@email.com", "senha");
+
+        when(usuarioRepository.existsByEmail("existente@email.com")).thenReturn(true);
+
+        assertTrue(usuarioService.emailJaRegistrado("existente@email.com"));
+        verify(usuarioRepository, times(1)).existsByEmail("existente@email.com");
+    }
+
+    @Test
+    void deveRetornarTrueQuandoEmailNaoExistirNoMetodoExistsByEmail() {
+        Usuario usuarioNaoExistente = new Usuario(2L, "UsuarioNovo", "novo@email.com", "senha");
+
+        when(usuarioRepository.existsByEmail("novo@email.com")).thenReturn(false);
+
+        assertFalse(usuarioService.emailJaRegistrado("novo@email.com"));
+        verify(usuarioRepository, times(1)).existsByEmail("novo@email.com");
+    }
 }

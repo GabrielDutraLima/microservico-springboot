@@ -8,21 +8,25 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
-@Service // Define a classe como um serviço do Spring (responsável pela lógica de negócios)
+@Service
 public class UsuarioService {
 
-    private final UsuarioRepository usuarioRepository; // Repositório para acessar dados de usuários
-    private final PasswordEncoder passwordEncoder; // Para codificar e verificar senhas
+    private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    // Construtor para injeção de dependência
+    // Construtor para injeção de dependências
     public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
+    // Método que verifica se o e-mail já está registrado
+    public boolean emailJaRegistrado(String email) {
+        return usuarioRepository.existsByEmail(email); // Verifica se o e-mail já está registrado
+    }
+
     /**
      * Lista todos os usuários.
-     * @return Lista de usuários.
      */
     public List<Usuario> listarTodos() {
         return usuarioRepository.findAll(); // Retorna todos os usuários do banco de dados
@@ -30,8 +34,6 @@ public class UsuarioService {
 
     /**
      * Busca um usuário pelo ID.
-     * @param id ID do usuário.
-     * @return O usuário encontrado ou Optional vazio se não encontrado.
      */
     public Optional<Usuario> buscarPorId(Long id) {
         return usuarioRepository.findById(id); // Retorna o usuário com o ID fornecido
@@ -39,13 +41,10 @@ public class UsuarioService {
 
     /**
      * Cria um novo usuário.
-     * @param usuario O objeto do usuário a ser criado.
-     * @return O usuário criado.
-     * @throws IllegalArgumentException Se o e-mail já estiver registrado.
      */
     public Usuario salvar(Usuario usuario) {
-        if (usuarioRepository.existsByEmail(usuario.getEmail())) {
-            throw new IllegalArgumentException("E-mail já registrado."); // Verifica se o e-mail já está registrado
+        if (emailJaRegistrado(usuario.getEmail())) {  // Verifica se o e-mail já está registrado
+            throw new IllegalArgumentException("E-mail já registrado.");
         }
         usuario.setSenha(passwordEncoder.encode(usuario.getSenha())); // Codifica a senha
         return usuarioRepository.save(usuario); // Salva o usuário no banco de dados
@@ -53,38 +52,32 @@ public class UsuarioService {
 
     /**
      * Atualiza um usuário existente.
-     * @param id ID do usuário a ser atualizado.
-     * @param usuarioAtualizado O objeto com os dados atualizados do usuário.
-     * @return O usuário atualizado.
-     * @throws IllegalArgumentException Se o usuário não for encontrado ou o e-mail já estiver registrado.
      */
     public Usuario atualizar(Long id, Usuario usuarioAtualizado) {
         Usuario usuarioExistente = buscarPorId(id)
-                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado.")); // Busca o usuário ou lança exceção se não encontrado
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
 
-        if (!usuarioExistente.getEmail().equals(usuarioAtualizado.getEmail()) &&
-                usuarioRepository.existsByEmail(usuarioAtualizado.getEmail())) {
-            throw new IllegalArgumentException("E-mail já registrado."); // Verifica se o e-mail já está registrado
+        // Verifica se o e-mail foi alterado e se o novo e-mail já está registrado
+        if (!usuarioExistente.getEmail().equals(usuarioAtualizado.getEmail()) && emailJaRegistrado(usuarioAtualizado.getEmail())) {
+            throw new IllegalArgumentException("E-mail já registrado.");
         }
 
-        usuarioExistente.setNome(usuarioAtualizado.getNome()); // Atualiza o nome do usuário
-        usuarioExistente.setEmail(usuarioAtualizado.getEmail()); // Atualiza o e-mail
+        usuarioExistente.setNome(usuarioAtualizado.getNome());
+        usuarioExistente.setEmail(usuarioAtualizado.getEmail());
 
         if (!passwordEncoder.matches(usuarioAtualizado.getSenha(), usuarioExistente.getSenha())) {
-            usuarioExistente.setSenha(passwordEncoder.encode(usuarioAtualizado.getSenha())); // Codifica e atualiza a senha se ela foi alterada
+            usuarioExistente.setSenha(passwordEncoder.encode(usuarioAtualizado.getSenha())); // Atualiza a senha
         }
 
-        return usuarioRepository.save(usuarioExistente); // Salva as alterações no banco de dados
+        return usuarioRepository.save(usuarioExistente);
     }
 
     /**
      * Deleta um usuário.
-     * @param id ID do usuário a ser deletado.
-     * @throws IllegalArgumentException Se o usuário não for encontrado.
      */
     public void deletar(Long id) {
         Usuario usuario = buscarPorId(id)
-                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado.")); // Busca o usuário ou lança exceção se não encontrado
-        usuarioRepository.delete(usuario); // Deleta o usuário do banco de dados
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
+        usuarioRepository.delete(usuario);
     }
 }
