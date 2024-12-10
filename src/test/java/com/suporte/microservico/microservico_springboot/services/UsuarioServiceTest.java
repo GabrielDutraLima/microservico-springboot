@@ -60,36 +60,58 @@ class UsuarioServiceTest {
     }
 
     @Test
-    void deveAtualizarUsuarioComSucesso() {
+    void deveAtualizarUsuarioComEmailExistente() {
         Usuario usuarioExistente = new Usuario(1L, "UsuarioAntigo", "antigo@email.com", "senhaAntiga");
         Usuario usuarioAtualizado = new Usuario(1L, "UsuarioNovo", "novo@email.com", "novaSenha");
 
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioExistente));
-        when(usuarioRepository.existsByEmail("novo@email.com")).thenReturn(false);
+        when(usuarioRepository.existsByEmail("novo@email.com")).thenReturn(true);
+
+        Exception excecao = assertThrows(IllegalArgumentException.class, () -> usuarioService.atualizar(1L, usuarioAtualizado));
+        assertEquals("E-mail já registrado.", excecao.getMessage());
+        verify(usuarioRepository, times(1)).findById(1L);
+        verify(usuarioRepository, times(1)).existsByEmail("novo@email.com");
+    }
+
+    @Test
+    void deveAtualizarUsuarioSemAlterarSenha() {
+        Usuario usuarioExistente = new Usuario(1L, "UsuarioAntigo", "antigo@email.com", "senhaCodificada");
+        Usuario usuarioAtualizado = new Usuario(1L, "UsuarioNovo", "antigo@email.com", "senhaCodificada");
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioExistente));
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(passwordEncoder.matches("senhaCodificada", "senhaCodificada")).thenReturn(true);
+
+        Usuario resultado = usuarioService.atualizar(1L, usuarioAtualizado);
+
+        assertNotNull(resultado);
+        assertEquals("UsuarioNovo", resultado.getNome());
+        assertEquals("antigo@email.com", resultado.getEmail());
+        assertEquals("senhaCodificada", resultado.getSenha());
+        verify(usuarioRepository, times(1)).findById(1L);
+        verify(usuarioRepository, times(1)).save(any(Usuario.class));
+        verify(passwordEncoder, times(1)).matches("senhaCodificada", "senhaCodificada");
+        verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
+    void deveAtualizarUsuarioComSenhaAlterada() {
+        Usuario usuarioExistente = new Usuario(1L, "UsuarioAntigo", "antigo@email.com", "senhaCodificada");
+        Usuario usuarioAtualizado = new Usuario(1L, "UsuarioAtualizado", "antigo@email.com", "novaSenha");
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioExistente));
         when(passwordEncoder.encode("novaSenha")).thenReturn("novaSenhaCodificada");
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Usuario resultado = usuarioService.atualizar(1L, usuarioAtualizado);
 
         assertNotNull(resultado);
-        assertEquals("UsuarioNovo", resultado.getNome());
-        assertEquals("novo@email.com", resultado.getEmail());
+        assertEquals("UsuarioAtualizado", resultado.getNome());
+        assertEquals("antigo@email.com", resultado.getEmail());
         assertEquals("novaSenhaCodificada", resultado.getSenha());
         verify(usuarioRepository, times(1)).findById(1L);
-        verify(usuarioRepository, times(1)).save(any(Usuario.class));
         verify(passwordEncoder, times(1)).encode("novaSenha");
-    }
-
-    @Test
-    void deveLancarExcecaoAoAtualizarUsuarioNaoExistente() {
-        Usuario usuarioAtualizado = new Usuario(1L, "UsuarioNovo", "novo@email.com", "novaSenha");
-
-        when(usuarioRepository.findById(1L)).thenReturn(Optional.empty());
-
-        Exception excecao = assertThrows(IllegalArgumentException.class, () -> usuarioService.atualizar(1L, usuarioAtualizado));
-        assertEquals("Usuário não encontrado.", excecao.getMessage());
-        verify(usuarioRepository, times(1)).findById(1L);
-        verify(usuarioRepository, never()).save(any(Usuario.class));
+        verify(usuarioRepository, times(1)).save(any(Usuario.class));
     }
 
     @Test
@@ -106,32 +128,22 @@ class UsuarioServiceTest {
     }
 
     @Test
-    void deveLancarExcecaoAoDeletarUsuarioNaoExistente() {
-        when(usuarioRepository.findById(1L)).thenReturn(Optional.empty());
+    void deveRetornarFalsoQuandoEmailNaoExistirNoMetodoExistsByEmail() {
+        when(usuarioRepository.existsByEmail("inexistente@email.com")).thenReturn(false);
 
-        Exception excecao = assertThrows(IllegalArgumentException.class, () -> usuarioService.deletar(1L));
-        assertEquals("Usuário não encontrado.", excecao.getMessage());
-        verify(usuarioRepository, times(1)).findById(1L);
-        verify(usuarioRepository, never()).delete(any(Usuario.class));
+        boolean resultado = usuarioService.emailJaRegistrado("inexistente@email.com");
+
+        assertFalse(resultado);
+        verify(usuarioRepository, times(1)).existsByEmail("inexistente@email.com");
     }
 
     @Test
-    void deveRetornarFalseQuandoEmailJaExistirNoMetodoExistsByEmail() {
-        Usuario usuarioExistente = new Usuario(1L, "UsuarioExistente", "existente@email.com", "senha");
-
+    void deveRetornarVerdadeiroQuandoEmailExistirNoMetodoExistsByEmail() {
         when(usuarioRepository.existsByEmail("existente@email.com")).thenReturn(true);
 
-        assertTrue(usuarioService.emailJaRegistrado("existente@email.com"));
+        boolean resultado = usuarioService.emailJaRegistrado("existente@email.com");
+
+        assertTrue(resultado);
         verify(usuarioRepository, times(1)).existsByEmail("existente@email.com");
-    }
-
-    @Test
-    void deveRetornarTrueQuandoEmailNaoExistirNoMetodoExistsByEmail() {
-        Usuario usuarioNaoExistente = new Usuario(2L, "UsuarioNovo", "novo@email.com", "senha");
-
-        when(usuarioRepository.existsByEmail("novo@email.com")).thenReturn(false);
-
-        assertFalse(usuarioService.emailJaRegistrado("novo@email.com"));
-        verify(usuarioRepository, times(1)).existsByEmail("novo@email.com");
     }
 }

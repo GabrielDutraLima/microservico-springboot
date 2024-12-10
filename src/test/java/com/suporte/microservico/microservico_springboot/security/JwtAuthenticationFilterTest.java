@@ -98,4 +98,58 @@ class JwtAuthenticationFilterTest {
         verify(jwtTokenUtil, never()).extractUsername(anyString()); // Não deve tentar extrair o nome de usuário
         verify(filterChain, times(1)).doFilter(request, response); // Verifica se o filtro foi continuado
     }
+    @Test
+    void deveLancarExcecaoQuandoTokenInvalidoGeraErroInterno() throws ServletException, IOException {
+        // Prepara o cenário: cria uma requisição com token inválido que gera exceção
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        request.addHeader("Authorization", "Bearer tokenErro");
+
+        // Quando o método de validação lança uma exceção
+        when(jwtTokenUtil.validateToken("tokenErro")).thenThrow(new RuntimeException("Erro interno ao validar token"));
+
+        // Ação: chama o filtro de autenticação e verifica se a exceção é capturada corretamente
+        assertThrows(RuntimeException.class, () -> jwtAuthenticationFilter.doFilterInternal(request, response, filterChain));
+
+        // Verificação: nenhum contexto de autenticação deve ser configurado
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(jwtTokenUtil, times(1)).validateToken("tokenErro");
+        verify(filterChain, never()).doFilter(request, response); // O filtro não deve continuar
+    }
+
+    @Test
+    void deveConfigurarAutenticacaoQuandoTokenNaoContemBearer() throws ServletException, IOException {
+        // Prepara o cenário: cria uma requisição com um token sem o prefixo "Bearer"
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        request.addHeader("Authorization", "tokenSemBearer");
+
+        // Nenhuma validação deve ocorrer, pois o token é inválido
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        // Verificação: o contexto de segurança não deve ter a autenticação configurada
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(jwtTokenUtil, never()).validateToken(anyString());
+        verify(jwtTokenUtil, never()).extractUsername(anyString());
+        verify(filterChain, times(1)).doFilter(request, response); // O filtro deve continuar
+    }
+
+    @Test
+    void deveIgnorarAutenticacaoQuandoHeaderAuthorizationEstaVazio() throws ServletException, IOException {
+        // Prepara o cenário: cria uma requisição sem cabeçalho de autorização
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        // Ação: chama o filtro de autenticação
+        jwtAuthenticationFilter.doFilterInternal(request, response, filterChain);
+
+        // Verificação: o contexto de segurança não deve ter a autenticação configurada
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(jwtTokenUtil, never()).validateToken(anyString());
+        verify(jwtTokenUtil, never()).extractUsername(anyString());
+        verify(filterChain, times(1)).doFilter(request, response); // O filtro deve continuar
+    }
+
+
+
 }
